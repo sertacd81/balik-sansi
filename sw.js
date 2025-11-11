@@ -1,9 +1,11 @@
 // v0.4.3 – icon & splash integrated; force update
-const CACHE = 'balik-sansi-v13';
+const CACHE = 'balik-sansi-v15';
 const ASSETS = [
   './','./index.html','./app.js?v=0.4.2','./manifest.webmanifest',
   './icons/icon-192.png','./icons/icon-512.png',
   './icons/favicon-32.png','./icons/favicon-64.png'
+'./icons/apple-touch-icon-120.png','./icons/apple-touch-icon-152.png',
+  './icons/apple-touch-icon-167.png','./icons/apple-touch-icon-180.png'
 ];
 self.addEventListener('install', (e) => {
   self.skipWaiting();
