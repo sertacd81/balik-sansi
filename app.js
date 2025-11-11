@@ -1,7 +1,4 @@
-/* v0.3.1: 0–24 saat ekseni + Gaussian (çan eğrisi) skor + cache bump
-   - Kartlarda 'Detay' butonu -> modal içinde saat vs ihtimal grafiği
-   - Eşik üstü saat aralıkları gölgelendirme + metin listesi
-*/
+/* v0.3.2: 0–24 saat ekseni + Gaussian skor + syntax fix + cache bump */
 const KONUM_INPUT = document.getElementById('konum');
 const GUN_SELECT  = document.getElementById('gunSayisi');
 const SONUCLAR    = document.getElementById('sonuclar');
@@ -64,9 +61,9 @@ async function fetchMoon(lat, lon, days){
 // ---- Scoring (Gaussian) ----
 function hourlyScore(wind, pressure, temp){
   const gauss = (x, mu, sigma) => Math.exp(-Math.pow(x-mu,2)/(2*Math.pow(sigma,2))) * 100;
-  const wScore = gauss(wind, 8, 6);     // km/s
+  const wScore = gauss(wind, 8, 6);        // km/s
   const pScore = gauss(pressure, 1015, 7); // hPa
-  const tScore = gauss(temp, 18, 6);    // °C
+  const tScore = gauss(temp, 18, 6);       // °C
   const score  = (wScore*0.4 + pScore*0.3 + tScore*0.3);
   return Math.max(0, Math.min(100, Math.round(score)));
 }
@@ -149,7 +146,7 @@ function computeDaily(forecast, moonData){
     const pickHours = ranked[0] ? Array.from({length: ranked[0].len}, (_,k)=> ranked[0].start + k) : [];
     const windAvg = pickHours.length ? avg(arrPick(hrWind, pickHours)) : null;
     const presAvg = pickHours.length ? avg(arrPick(hrPres, pickHours)) : null;
-    const tempAvg = pickHours.length ? avg(arrPick(hrTemp, pickHours)) : \
+    const tempAvg = pickHours.length ? avg(arrPick(hrTemp, pickHours)) :
                       ((tmax!=null && tmin!=null) ? Math.round((tmax+tmin)/2) : null);
 
     const moonP   = (moonMap[date] != null) ? moonMap[date] : 0.5;

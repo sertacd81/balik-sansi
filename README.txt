@@ -1,9 +1,9 @@
-# Balık Tutma Şansı – PWA (v0.3.1)
+# Balık Tutma Şansı – PWA (v0.3.2)
 
-- **0–24** saat ekseni
-- **Gaussian (çan eğrisi)** skor modeli (daha seçici)
-- Modal içi **saat vs ihtimal** grafiği, eşik üstü aralıklar gölgelendirmeli
-- Open-Meteo Forecast + Astronomy (moon), Nominatim geocoding
+- 0–24 saat ekseni
+- Gaussian skor modeli
+- **Syntax fix**: tempAvg satırındaki ters bölü işareti (\) kaldırıldı
+- Modal içi saat–ihtimal grafiği, eşik üstü aralıklar gölgelendirmeli
 
 ## Yerel çalıştırma
 1) `python -m http.server 5173` veya `npx http-server -p 5173`
@@ -13,4 +13,4 @@
 - Repo köküne kopyala → Settings → Pages → `Deploy from a branch` → `main`/`root`
 - iPhone’da Safari → siteyi aç → **Ana Ekrana Ekle**
 
-— Oluşturuldu: 2025-11-11T17:09:40
+— Oluşturuldu: 2025-11-11T17:31:25
