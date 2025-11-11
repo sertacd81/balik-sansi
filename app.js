@@ -1,6 +1,6 @@
-/* v0.3: Günlük detay grafik (canvas) + Open-Meteo Forecast + Astronomy (moon)
+/* v0.3.1: 0–24 saat ekseni + Gaussian (çan eğrisi) skor + cache bump
    - Kartlarda 'Detay' butonu -> modal içinde saat vs ihtimal grafiği
-   - Eşik üstü saat aralıkları metin olarak da gösterilir
+   - Eşik üstü saat aralıkları gölgelendirme + metin listesi
 */
 const KONUM_INPUT = document.getElementById('konum');
 const GUN_SELECT  = document.getElementById('gunSayisi');
@@ -61,12 +61,14 @@ async function fetchMoon(lat, lon, days){
   return await res.json();
 }
 
-// ---- Scoring ----
+// ---- Scoring (Gaussian) ----
 function hourlyScore(wind, pressure, temp){
-  const wScore = Math.max(0, 100 - Math.abs(wind - 8)*6);
-  const pScore = Math.max(0, 100 - Math.abs(pressure - 1015));
-  const tScore = Math.max(0, 100 - Math.abs(temp - 18)*5);
-  return Math.round(wScore*0.4 + pScore*0.3 + tScore*0.3);
+  const gauss = (x, mu, sigma) => Math.exp(-Math.pow(x-mu,2)/(2*Math.pow(sigma,2))) * 100;
+  const wScore = gauss(wind, 8, 6);     // km/s
+  const pScore = gauss(pressure, 1015, 7); // hPa
+  const tScore = gauss(temp, 18, 6);    // °C
+  const score  = (wScore*0.4 + pScore*0.3 + tScore*0.3);
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 // ---- Compute & store ----
@@ -95,13 +97,13 @@ function computeDaily(forecast, moonData){
     const tmax = forecast.daily?.temperature_2m_max?.[i] ?? null;
     const tmin = forecast.daily?.temperature_2m_min?.[i] ?? null;
 
-    // Saatlik skorlar
+    // Saatlik skorlar (0–23)
     const hours = [];
     for(let j=0;j<hrTimes.length;j++){
       const t = hrTimes[j];
       if(t.startsWith(date)){
         const h = parseInt(t.slice(11,13));
-        if(h>=5 && h<=21){
+        if(h>=0 && h<=23){
           const w = hrWind?.[j]; const p = hrPres?.[j]; const T = hrTemp?.[j];
           if(w!=null && p!=null && T!=null){
             hours.push({ hour:h, score: hourlyScore(w,p,T) });
@@ -147,7 +149,7 @@ function computeDaily(forecast, moonData){
     const pickHours = ranked[0] ? Array.from({length: ranked[0].len}, (_,k)=> ranked[0].start + k) : [];
     const windAvg = pickHours.length ? avg(arrPick(hrWind, pickHours)) : null;
     const presAvg = pickHours.length ? avg(arrPick(hrPres, pickHours)) : null;
-    const tempAvg = pickHours.length ? avg(arrPick(hrTemp, pickHours)) :
+    const tempAvg = pickHours.length ? avg(arrPick(hrTemp, pickHours)) : \
                       ((tmax!=null && tmin!=null) ? Math.round((tmax+tmin)/2) : null);
 
     const moonP   = (moonMap[date] != null) ? moonMap[date] : 0.5;
@@ -227,7 +229,6 @@ function openDetailModal(dateStr, placeName){
   drawChart(hours, dateStr);
   const pretty = new Date(dateStr).toLocaleDateString('tr-TR', { weekday:'long', day:'2-digit', month:'long' });
   MODAL_TITLE.textContent = `${placeName} — ${pretty}`;
-  // Compose ranges text from cutoff logic inside drawChart (it returns labels)
   const labels = computeRanges(hours);
   RANGES_TEXT.textContent = labels.length ? `En iyi saat aralıkları: ${labels.join(', ')}` : 'Eşik üstünde saat aralığı yok';
   MODAL_BACKDROP.style.display = 'flex';
@@ -272,18 +273,15 @@ function computeRanges(hours){
 
 function drawChart(hours, dateStr){
   const ctx = CANVAS.getContext('2d');
-  // Clear
   ctx.clearRect(0,0,CANVAS.width,CANVAS.height);
 
-  // Margins
   const m = {left:50, right:20, top:20, bottom:40};
   const w = CANVAS.width - m.left - m.right;
   const h = CANVAS.height - m.top - m.bottom;
 
-  // Data domain
   const xs = hours.map(d=>d.hour);
   const ys = hours.map(d=>d.score);
-  const xMin = 5, xMax = 21;
+  const xMin = 0, xMax = 24;
   const yMin = 0, yMax = 100;
 
   const xScale = x => m.left + ( (x - xMin) / (xMax - xMin) ) * w;
@@ -302,7 +300,7 @@ function drawChart(hours, dateStr){
   ctx.fillStyle = '#cbd5e1';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  for(let hr=5; hr<=21; hr+=2){
+  for(let hr=0; hr<=24; hr+=3){
     const x = xScale(hr);
     ctx.fillText(String(hr).padStart(2,'0'), x, m.top+h+6);
     ctx.strokeStyle = '#1f2937';
@@ -329,7 +327,7 @@ function drawChart(hours, dateStr){
 
   // Ranges shading
   const labels = computeRanges(hours);
-  ctx.fillStyle = 'rgba(16,185,129,0.15)'; // soft greenish
+  ctx.fillStyle = 'rgba(16,185,129,0.15)';
   for(const lab of labels){
     const [s,e] = lab.split('–').map(t => parseInt(t.slice(0,2),10));
     const x1 = xScale(s);
@@ -339,7 +337,7 @@ function drawChart(hours, dateStr){
 
   // Line path
   if(xs.length){
-    ctx.strokeStyle = '#eab308'; // amber-ish
+    ctx.strokeStyle = '#eab308';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(xScale(xs[0]), yScale(ys[0]));
