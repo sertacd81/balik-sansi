@@ -1,5 +1,5 @@
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('balik-sansi-v2').then(cache => cache.addAll([
+  e.waitUntil(caches.open('balik-sansi-v3').then(cache => cache.addAll([
     './','./index.html','./styles.css','./app.js','./manifest.webmanifest'
   ])));
 });
