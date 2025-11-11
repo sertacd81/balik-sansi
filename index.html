@@ -3,10 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Balık Tutma Şansı 🎣</title>
+  <title>Rastgele 🎣 – Balık Tutma Şansı</title>
+
+  <!-- Manifest & Theme -->
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0a7">
+  <meta name="theme-color" content="#0063b3">
+
+  <!-- Favicons / Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- (Optional) iOS splash -->
+  <link rel="apple-touch-startup-image" href="icons/splash-1280x720.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
   <style>
     html,body{margin:0;padding:0;background:#0b1320;color:#ecf2f8;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell}
     .wrap{max-width:520px;margin:0 auto;padding:16px}
@@ -28,7 +40,6 @@
     .switch{display:flex;gap:10px;align-items:center}
     .btn{border:none;border-radius:10px;padding:8px 12px;background:#1f2a44;color:#ecf2f8}
     .btn:active{opacity:.85}
-    /* Modal */
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
     .modal{background:#0f1a2b;border:1px solid #1e2a40;border-radius:16px;max-width:720px;width:100%;box-shadow:0 5px 30px rgba(0,0,0,.6)}
     .modal header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #1e2a40}
@@ -36,7 +47,7 @@
     .xbtn{background:transparent;border:none;color:#ecf2f8;font-size:1.2rem}
     canvas{width:100%;height:340px;display:block}
   </style>
-  <link rel="stylesheet" href="styles.css">
+
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -49,7 +60,7 @@
   <div class="wrap">
     <header style="margin:12px 0 16px 0;">
       <div class="topline">
-        <h1 style="margin:0;font-size:1.4rem;">Balık Tutma Şansı <span aria-hidden="true">🎣</span></h1>
+        <h1 style="margin:0;font-size:1.4rem;">Rastgele <span aria-hidden="true">🎣</span></h1>
         <div class="switch">
           <input id="autoUpdate" type="checkbox" checked>
           <label for="autoUpdate" class="muted">Otomatik</label>
@@ -79,7 +90,7 @@
     <section id="sonuclar" style="margin-top:16px"></section>
 
     <footer>
-      <div>v0.4.2 • PWA (sharper gaussian + stronger twilight)</div>
+      <div>v0.4.3 • Rastgele (ikon & splash entegre)</div>
       <div class="hint">Karttaki “Detay” ile saat–ihtimal grafiğini gör.</div>
     </footer>
   </div>

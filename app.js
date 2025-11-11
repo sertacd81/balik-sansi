@@ -122,7 +122,7 @@ function computeDaily(forecast, astro){
 
       // 3) Moon boost (optional)
       if(moonrise!=null) s = Math.min(100, s + hGauss(h, moonrise, MOON_SIGMA_H)* (MOON_BOOST_MAX/100));
-      if(moonset !=null) s = Math.min(100, s + hGauss(h, moonset,  MOON_SIGMA_H)* (MOON_BOOST_MAX/100));
+      if(moonset!=null) s = Math.min(100, s + hGauss(h, moonset,  MOON_SIGMA_H)* (MOON_BOOST_MAX/100));
 
       hours.push({ hour:h, score: Math.round(s) });
     }
@@ -231,6 +231,8 @@ function openDetailModal(dateStr, placeName){
   const labels=computeRangesForDay(hours, cutoff);
   RANGES_TEXT.textContent=labels.length?`En iyi saat aralıkları: ${labels.join(', ')}`:'Eşik üstünde saat aralığı yok';
   MODAL_BACKDROP.style.display='flex';
+  MODAL_BACKDROP.setAttribute('aria-hidden','true'); // accessibility off until shown
+  MODAL_BACKDROP.style.display='flex';
   MODAL_BACKDROP.setAttribute('aria-hidden','false');
   document.body.style.overflow='hidden';
 }
@@ -293,7 +295,8 @@ async function doQuery(placeStr, days){
 }
 
 // ---------- AUTORUN ----------
-const autoHandler = debounce(()=>{ if(!AUTO_SWITCH.checked) return;
+function debounce2(fn, w=700){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), w); }; }
+const autoHandler = debounce2(()=>{ if(!AUTO_SWITCH.checked) return;
   const place=(KONUM_INPUT.value||'').trim(); const days=Number(GUN_SELECT.value||3);
   if(!place){ SONUCLAR.innerHTML='<div class="card">Lütfen konum girin.</div>'; return; }
   if(lastQuery.q===place && lastQuery.days===days) return;

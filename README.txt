@@ -1,17 +1,12 @@
-# Balık Tutma Şansı – PWA (v0.4.2)
+# Rastgele – v0.4.3 (ikon & splash entegre)
+Oluşturulma: 2025-11-11T19:20:35
 
-- **Sharper Gaussian**: sigma azaltıldı, ağırlıklar ayarlandı → daha dalgalı skorlar
-- **Stronger twilight**: gün doğumu/batımı piki artırıldı
-- **Lighter moon effect**: moonrise/moonset katkısı azaltıldı
-- Astronomy isteği opsiyonel (fallback), sunrise/sunset forecast.daily'den
-- Dinamik eşik (p70, 55..85), 0–24 eksen, modal grafik ve markerlar
+Kurulum:
+1) Bu paketi repo köküne kopyala (üzerine yaz).
+2) Commit & push (GitHub Pages).
+3) İlk yüklemede URL'ye `?v=043` ekle → cache bypass.
+4) iPhone: Safari → paylaş → Ana Ekrana Ekle (yeni ikon/splash görünür).
 
-## Yerel çalıştırma
-1) `python -m http.server 5173` veya `npx http-server -p 5173`
-2) `http://localhost:5173`
-
-## Yayın (GitHub Pages)
-- Repo köküne kopyala → Settings → Pages → `Deploy from a branch` → `main`/`root`
-- iPhone’da Safari → siteyi aç → **Ana Ekrana Ekle**
-
-— Oluşturuldu: 2025-11-11T18:34:58
+Notlar:
+- app.js v0.4.2 sürümüyle uyumlu (grafik ve skor iyileştirmeleri).
+- sw.js cache: balik-sansi-v13 (skipWaiting + clients.claim).

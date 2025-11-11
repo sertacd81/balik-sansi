@@ -1,10 +1,10 @@
 {
-  "name": "Balık Tutma Şansı",
-  "short_name": "Balık Şansı",
+  "name": "Rastgele",
+  "short_name": "Rastgele",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0b1320",
-  "theme_color": "#0a7",
+  "theme_color": "#0063b3",
   "icons": [
     {
       "src": "icons/icon-192.png",
