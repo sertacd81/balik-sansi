@@ -1,4 +1,4 @@
-/* v0.4.1: Twilight boost + astronomy fallback; 0–24 eksen + dynamic cutoff */
+/* v0.4.2: Sharper weather Gaussian, stronger twilight peak, lighter moon; astronomy fallback */
 const KONUM_INPUT = document.getElementById('konum');
 const GUN_SELECT  = document.getElementById('gunSayisi');
 const SONUCLAR    = document.getElementById('sonuclar');
@@ -56,13 +56,13 @@ async function fetchAstronomy(lat, lon, days){
   }catch(e){ console.warn('Astronomy fallback:', e); return null; }
 }
 
-// ---------- WEATHER SCORE (Gaussian) ----------
+// ---------- WEATHER SCORE (Sharper Gaussian) ----------
 function weatherScore(wind, pressure, temp){
   const gauss = (x, mu, sigma) => Math.exp(-((x-mu)*(x-mu))/(2*sigma*sigma))*100;
-  const w = gauss(wind, 8, 6);     // km/s
-  const p = gauss(pressure, 1015, 7); // hPa
-  const T = gauss(temp, 18, 6);    // °C
-  return Math.max(0, Math.min(100, Math.round(w*0.4 + p*0.3 + T*0.3)));
+  const w = gauss(wind, 8, 4.5);     // rüzgar
+  const p = gauss(pressure, 1015, 5.5); // basınç
+  const T = gauss(temp, 18, 4.0);    // sıcaklık
+  return Math.max(0, Math.min(100, Math.round(w*0.5 + p*0.3 + T*0.2)));
 }
 
 // ---------- TIME HELPERS ----------
@@ -70,9 +70,9 @@ const toHour = s => { const d = new Date(s); return d.getHours() + d.getMinutes(
 const hGauss = (h, center, sigmaH) => Math.exp(-((h-center)*(h-center))/(2*sigmaH*sigmaH))*100;
 
 // Boost weights
-const TWILIGHT_BOOST_MAX = 18;
-const TWILIGHT_SIGMA_H   = 0.8;
-const MOON_BOOST_MAX     = 10;
+const TWILIGHT_BOOST_MAX = 28;  // ↑
+const TWILIGHT_SIGMA_H   = 1.2; // ↑
+const MOON_BOOST_MAX     = 6;   // ↓
 const MOON_SIGMA_H       = 1.0;
 
 // ---------- COMPUTE ----------
