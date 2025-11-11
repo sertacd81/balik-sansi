@@ -28,14 +28,22 @@ function datespan(days){
 }
 
 async function fetchWeatherAndMoon(lat, lon, days){
-  const [startISO,endISO] = datespan(days);
-  const dailyVars = ['temperature_2m_max','temperature_2m_min','moon_phase'].join(',');
-  const hourlyVars = ['windspeed_10m','pressure_msl','temperature_2m'].join(',');
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&timezone=auto&start_date=${startISO}&end_date=${endISO}&daily=${dailyVars}&hourly=${hourlyVars}`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('Hava verisi alınamadı');
+  const dailyVars  = 'temperature_2m_max,temperature_2m_min,moon_phase';
+  const hourlyVars = 'windspeed_10m,pressure_msl,temperature_2m';
+  // start_date/end_date yerine forecast_days kullan: daha toleranslı
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&timezone=auto&forecast_days=${Math.max(1, Math.min(7, Number(days)||5))}` +
+    `&daily=${dailyVars}&hourly=${hourlyVars}`;
+
+  const res = await fetch(url, { mode: 'cors' });
+  if(!res.ok){
+    const txt = await res.text().catch(()=> '');
+    throw new Error('Hava verisi alınamadı' + (txt ? ` (${txt.slice(0,120)}...)` : ''));
+  }
   return await res.json();
 }
+
 
 function hourlyScore(wind, pressure, temp){
   let wScore = Math.max(0, 100 - Math.abs(wind - 8)*6);
