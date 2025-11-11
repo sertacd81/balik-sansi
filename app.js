@@ -44,16 +44,34 @@ async function fetchForecast(lat, lon, days){
   return r.json();
 }
 
-// ---------- ASTRONOMY (sun/moon events) ----------
+// ---- ASTRONOMY (sun/moon events) ----
+function fmtYMD(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
 async function fetchAstronomy(lat, lon, days){
+  const d = Math.max(1, Math.min(7, Number(days) || 5));
+  const start = new Date();
+  const end = new Date();
+  end.setDate(start.getDate() + d - 1);
+
   const daily = 'moon_phase,sunrise,sunset,moonrise,moonset';
-  const url = `https://api.open-meteo.com/v1/astronomy?latitude=${lat}&longitude=${lon}`
-            + `&timezone=auto&forecast_days=${Math.max(1,Math.min(7,Number(days)||5))}`
-            + `&daily=${daily}`;
-  const r = await fetch(url,{mode:'cors'});
-  if(!r.ok){ const t = await r.text().catch(()=> ''); throw new Error('Astronomi verisi alınamadı'+(t?` (${t.slice(0,120)}...)`:'')); }
+  const url =
+    `https://api.open-meteo.com/v1/astronomy?latitude=${lat}&longitude=${lon}` +
+    `&timezone=auto&start_date=${fmtYMD(start)}&end_date=${fmtYMD(end)}` +
+    `&daily=${daily}`;
+
+  const r = await fetch(url, { mode: 'cors' });
+  if (!r.ok) {
+    const t = await r.text().catch(()=> '');
+    throw new Error('Astronomi verisi alınamadı' + (t ? ` (${t.slice(0,120)}...)` : ''));
+  }
   return r.json();
 }
+
 
 // ---------- WEATHER SCORE (Gaussian) ----------
 function weatherScore(wind, pressure, temp){
