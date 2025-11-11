@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Balık Tutma Şansı 🎣</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0a7">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    html,body{margin:0;padding:0;background:#0b1320;color:#ecf2f8;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell}
+    .wrap{max-width:520px;margin:0 auto;padding:16px}
+    .card{background:#111a2b;border:1px solid #1e2a40;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+    .row{display:flex;gap:12px;align-items:center}
+    .row > *{flex:1}
+    .muted{opacity:.75;font-size:.9rem}
+    .score{font-size:3rem;font-weight:800;line-height:1;margin:6px 0}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#0e9; color:#053}
+    .label{font-size:.95rem;margin-bottom:6px;display:block}
+    select, input{width:100%;padding:12px;border-radius:12px;border:1px solid #24324b;background:#0e1525;color:#ecf2f8}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .hint{font-size:.85rem;opacity:.7}
+    footer{opacity:.7;font-size:.85rem;text-align:center;margin:20px 0}
+    .hours{margin-top:8px;font-size:.95rem}
+    .chip{display:inline-block;border:1px solid #24324b;background:#0e1525;border-radius:999px;padding:6px 10px;margin-right:6px;margin-top:6px}
+    .topline{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .topline .place{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%}
+    .switch{display:flex;gap:10px;align-items:center}
+  </style>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin:12px 0 16px 0;">
+      <div class="topline">
+        <h1 style="margin:0;font-size:1.4rem;">Balık Tutma Şansı <span aria-hidden="true">🎣</span></h1>
+        <div class="switch">
+          <input id="autoUpdate" type="checkbox" checked>
+          <label for="autoUpdate" class="muted">Otomatik</label>
+        </div>
+      </div>
+      <div class="muted">Konum ve gün sayısını seç — veriler otomatik gelsin.</div>
+    </header>
+
+    <section class="card" aria-label="Konum ve tarih">
+      <div class="grid">
+        <div>
+          <label class="label" for="konum">Konum</label>
+          <input id="konum" placeholder="Örn: Erdek - Narlı" value="Erdek - Narlı">
+        </div>
+        <div>
+          <label class="label" for="gunSayisi">Gün</label>
+          <select id="gunSayisi">
+            <option value="1">Bugün</option>
+            <option value="2">2 gün</option>
+            <option value="3">3 gün</option>
+            <option value="5" selected>5 gün</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section id="sonuclar" style="margin-top:16px"></section>
+
+    <footer>
+      <div>v0.2 • PWA (çevrimdışı destekli)</div>
+      <div class="hint">GitHub Pages’e yükleyip iPhone’da Ana Ekran’a ekleyebilirsin.</div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
