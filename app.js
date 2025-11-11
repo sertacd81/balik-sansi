@@ -1,32 +1,37 @@
-/* app.js (kalıcı çözüm) – Open-Meteo forecast + Astronomy (moon) ayrı çağrı
-   Özellikler:
-   - Konum (adres ya da "lat,lon") ve Gün sayısı değişince otomatik fetch
-   - Günlük kartlarda: skor, ort. rüzgar/basınç/sıcaklık, AY %, "en iyi 3 saat"
-   - Nominatim (geocoding) + Open-Meteo Forecast (daily+hourly) + Astronomy (moon)
+/* v0.3: Günlük detay grafik (canvas) + Open-Meteo Forecast + Astronomy (moon)
+   - Kartlarda 'Detay' butonu -> modal içinde saat vs ihtimal grafiği
+   - Eşik üstü saat aralıkları metin olarak da gösterilir
 */
-
 const KONUM_INPUT = document.getElementById('konum');
 const GUN_SELECT  = document.getElementById('gunSayisi');
 const SONUCLAR    = document.getElementById('sonuclar');
 const AUTO_SWITCH = document.getElementById('autoUpdate');
 
+// Modal elemanları
+const MODAL_BACKDROP = document.getElementById('modalBackdrop');
+const MODAL_CLOSE    = document.getElementById('modalClose');
+const MODAL_TITLE    = document.getElementById('modalTitle');
+const CANVAS         = document.getElementById('detailCanvas');
+const RANGES_TEXT    = document.getElementById('rangesText');
+
 let lastQuery = { q:'', days:null, lat:null, lon:null };
+let perDayHourly = {}; // date -> [{hour, score}]
 
 function debounce(fn, wait=700){
   let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); };
 }
 
-// ---- Geocoding (adres -> lat/lon) ----
+// ---- Geocoding ----
 async function geocodePlace(place){
   const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}&limit=1`;
-  const res = await fetch(url, { headers: { 'Accept':'application/json' }});
+  const res = await fetch(url, { headers: { 'Accept':'application/json' } });
   if(!res.ok) throw new Error('Konum servisine ulaşılamadı');
   const arr = await res.json();
   if(!arr || !arr.length) throw new Error('Konum bulunamadı');
   return { lat: parseFloat(arr[0].lat), lon: parseFloat(arr[0].lon), display_name: arr[0].display_name };
 }
 
-// ---- Forecast (daily+hourly) – moon_phase YOK, ayrı çağrılacak ----
+// ---- Forecast (daily+hourly) ----
 async function fetchForecast(lat, lon, days){
   const dailyVars  = 'temperature_2m_max,temperature_2m_min';
   const hourlyVars = 'windspeed_10m,pressure_msl,temperature_2m';
@@ -42,7 +47,7 @@ async function fetchForecast(lat, lon, days){
   return await res.json();
 }
 
-// ---- Astronomy (moon_phase) – ayrı uç ----
+// ---- Astronomy (moon) ----
 async function fetchMoon(lat, lon, days){
   const url =
     `https://api.open-meteo.com/v1/astronomy?latitude=${lat}&longitude=${lon}` +
@@ -56,24 +61,28 @@ async function fetchMoon(lat, lon, days){
   return await res.json();
 }
 
-// ---- Saatlik skor (0–100) ----
+// ---- Scoring ----
 function hourlyScore(wind, pressure, temp){
-  const wScore = Math.max(0, 100 - Math.abs(wind - 8)*6);     // ~8 km/s ideal
-  const pScore = Math.max(0, 100 - Math.abs(pressure - 1015)); // ~1015 hPa ideal
-  const tScore = Math.max(0, 100 - Math.abs(temp - 18)*5);     // 12–22°C iyi
+  const wScore = Math.max(0, 100 - Math.abs(wind - 8)*6);
+  const pScore = Math.max(0, 100 - Math.abs(pressure - 1015));
+  const tScore = Math.max(0, 100 - Math.abs(temp - 18)*5);
   return Math.round(wScore*0.4 + pScore*0.3 + tScore*0.3);
 }
 
-// ---- Günlük verileri hesapla (moon ayrı veriyle birleştirilir) ----
+// ---- Compute & store ----
 function computeDaily(forecast, moonData){
+  const CUTOFF = 70;
+  const MIN_BLOCK_LEN = 2;
+
   const out = [];
+  perDayHourly = {}; // reset
+
   const dates   = forecast.daily?.time || [];
   const hrTimes = forecast.hourly?.time || [];
   const hrWind  = forecast.hourly?.windspeed_10m || [];
   const hrPres  = forecast.hourly?.pressure_msl || [];
   const hrTemp  = forecast.hourly?.temperature_2m || [];
 
-  // Moon map hazırlayalım (date -> 0..1)
   const moonMap = {};
   if(moonData?.daily?.time && moonData.daily.moon_phase){
     for(let i=0;i<moonData.daily.time.length;i++){
@@ -82,11 +91,11 @@ function computeDaily(forecast, moonData){
   }
 
   for(let i=0;i<dates.length;i++){
-    const date   = dates[i];
-    const tmax   = forecast.daily?.temperature_2m_max?.[i] ?? null;
-    const tmin   = forecast.daily?.temperature_2m_min?.[i] ?? null;
+    const date = dates[i];
+    const tmax = forecast.daily?.temperature_2m_max?.[i] ?? null;
+    const tmin = forecast.daily?.temperature_2m_min?.[i] ?? null;
 
-    // 05:00–21:00 arasından en iyi saatleri çıkar
+    // Saatlik skorlar
     const hours = [];
     for(let j=0;j<hrTimes.length;j++){
       const t = hrTimes[j];
@@ -95,45 +104,74 @@ function computeDaily(forecast, moonData){
         if(h>=5 && h<=21){
           const w = hrWind?.[j]; const p = hrPres?.[j]; const T = hrTemp?.[j];
           if(w!=null && p!=null && T!=null){
-            hours.push({ hour: h, score: hourlyScore(w,p,T) });
+            hours.push({ hour:h, score: hourlyScore(w,p,T) });
           }
         }
       }
     }
-    hours.sort((a,b)=> b.score - a.score);
-    const top = hours.slice(0,3);
-    const bestHours = top.map(h => String(h.hour).padStart(2,'0') + ':00');
+    perDayHourly[date] = hours;
 
-    // Görüntüleme için ortalamalar
-    const pick = (arr, idx) => (idx>=0 && idx < arr.length) ? arr[idx] : null;
+    // Eşik üstü ardışık bloklar
+    const blocks = [];
+    let cur = [];
+    for(const h of hours){
+      if(h.score >= CUTOFF){
+        if(cur.length===0 || h.hour === cur[cur.length-1].hour+1){
+          cur.push(h);
+        } else {
+          if(cur.length >= MIN_BLOCK_LEN) blocks.push(cur);
+          cur = [h];
+        }
+      } else {
+        if(cur.length >= MIN_BLOCK_LEN) blocks.push(cur);
+        cur = [];
+      }
+    }
+    if(cur.length >= MIN_BLOCK_LEN) blocks.push(cur);
+
+    const ranked = blocks
+      .map(b => {
+        const avg = Math.round(b.reduce((s,v)=>s+v.score,0)/b.length);
+        return { start:b[0].hour, end:b[b.length-1].hour+1, avgScore:avg, len:b.length };
+      })
+      .sort((a,b)=> b.avgScore - a.avgScore || b.len - a.len);
+
+    const bestRanges = ranked.slice(0,3).map(r =>
+      `${String(r.start).padStart(2,'0')}:00–${String(r.end).padStart(2,'0')}:00`
+    );
+
     const findIndex = (H) => hrTimes.findIndex(tt => tt.startsWith(date) && parseInt(tt.slice(11,13))===H);
-    const vals = (arr) => top.map(h => arr[ findIndex(h.hour) ]).filter(v=>v!=null);
-    const avg  = (arr) => Math.round(arr.reduce((s,v)=>s+v,0)/arr.length);
+    const arrPick = (arr, hoursList) => hoursList.map(h => arr[ findIndex(h) ]).filter(v=>v!=null);
+    const avg = (arr) => Math.round(arr.reduce((s,v)=>s+v,0)/arr.length);
 
-    const windAvg = top.length ? avg(vals(hrWind)) : (null);
-    const presAvg = top.length ? avg(vals(hrPres)) : (null);
-    const tempAvg = top.length ? avg(vals(hrTemp)) : ((tmax!=null && tmin!=null) ? Math.round((tmax+tmin)/2) : null);
+    const pickHours = ranked[0] ? Array.from({length: ranked[0].len}, (_,k)=> ranked[0].start + k) : [];
+    const windAvg = pickHours.length ? avg(arrPick(hrWind, pickHours)) : null;
+    const presAvg = pickHours.length ? avg(arrPick(hrPres, pickHours)) : null;
+    const tempAvg = pickHours.length ? avg(arrPick(hrTemp, pickHours)) :
+                      ((tmax!=null && tmin!=null) ? Math.round((tmax+tmin)/2) : null);
 
-    // Ay yüzdesi (0..1 → 0..100), yoksa 50
-    const moonP  = (moonMap[date] != null) ? moonMap[date] : 0.5;
+    const moonP   = (moonMap[date] != null) ? moonMap[date] : 0.5;
     const moonPct = Math.round(moonP * 100);
 
-    // Gün skoru: top-3 saat ortalaması %80 + ay etkisi %20
-    const topAvg    = top.length ? Math.round(top.reduce((s,v)=>s+v.score,0)/top.length) : 50;
-    const dayScore  = Math.round(topAvg*0.8 + moonPct*0.2);
+    let topAvg = 50;
+    if(ranked[0]) topAvg = ranked[0].avgScore;
+    else if(hours.length){
+      const top3 = [...hours].sort((a,b)=>b.score-a.score).slice(0,3);
+      topAvg = Math.round(top3.reduce((s,v)=>s+v.score,0)/(top3.length||1));
+    }
+    const dayScore = Math.round(topAvg*0.8 + moonPct*0.2);
 
     let label='Zayıf', color='#ef4444', badge='🔴 Zayıf';
     if(dayScore >= 70){ label='Harika gün'; color='#10b981'; badge='🟢 Harika'; }
     else if(dayScore >= 45){ label='Orta şans'; color='#f59e0b'; badge='🟠 Orta'; }
 
     out.push({
-      date,
-      dayScore, label, color, badge,
+      date, dayScore, label, color, badge,
       windAvg: (windAvg ?? '-'),
       presAvg: (presAvg ?? '-'),
       tempAvg: (tempAvg ?? '-'),
       moonPct,
-      bestHours
+      bestRanges
     });
   }
 
@@ -143,10 +181,10 @@ function computeDaily(forecast, moonData){
 // ---- Render ----
 function render(placeName, arr){
   SONUCLAR.innerHTML = '';
-  const head = document.createElement('div');
-  head.className = 'card';
-  head.innerHTML = `<div><strong class="place">${placeName}</strong> — ${arr.length} gün</div>`;
-  SONUCLAR.appendChild(head);
+  const header = document.createElement('div');
+  header.className='card';
+  header.innerHTML = `<div><strong class="place">${placeName}</strong> — ${arr.length} gün</div>`;
+  SONUCLAR.appendChild(header);
 
   arr.forEach(r=>{
     const el = document.createElement('div');
@@ -155,7 +193,7 @@ function render(placeName, arr){
     el.innerHTML = `
       <div class="row" style="justify-content:space-between">
         <div>
-          <div class="muted">${new Date(r.date).toLocaleDateString('tr-TR', { weekday:'short', day:'2-digit', month:'short' })}</div>
+          <div class="muted">${new Date(r.date).toLocaleDateString('tr-TR',{weekday:'short', day:'2-digit', month:'short'})}</div>
           <div class="badge" style="background:${r.color}22;color:${r.color}">${r.badge}</div>
         </div>
         <div style="text-align:right">
@@ -164,20 +202,165 @@ function render(placeName, arr){
         </div>
       </div>
       <div class="hint">Rüzgar avg: ${r.windAvg} km/s • Basınç avg: ${r.presAvg} hPa • Sıcaklık avg: ${r.tempAvg}°C • Ay: ${r.moonPct}</div>
-      <div class="hours"><span class="muted">En iyi saatler:</span> ${
-        r.bestHours.length ? r.bestHours.map(h=>`<span class="chip">${h}</span>`).join('') : '<span class="chip">—</span>'
+      <div class="hours"><span class="muted">En iyi saat aralıkları:</span> ${
+        r.bestRanges.length ? r.bestRanges.map(rg=>`<span class="chip">${rg}</span>`).join('') : '<span class="chip">—</span>'
       }</div>
+      <div style="margin-top:10px;text-align:right">
+        <button class="btn detail-btn" data-date="${r.date}">Detay</button>
+      </div>
     `;
     SONUCLAR.appendChild(el);
   });
+
+  // Detay butonları
+  document.querySelectorAll('.detail-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.getAttribute('data-date');
+      openDetailModal(d, placeName);
+    });
+  });
 }
 
-// ---- Sorgu akışı ----
+// ---- Modal controls ----
+function openDetailModal(dateStr, placeName){
+  const hours = perDayHourly[dateStr] || [];
+  drawChart(hours, dateStr);
+  const pretty = new Date(dateStr).toLocaleDateString('tr-TR', { weekday:'long', day:'2-digit', month:'long' });
+  MODAL_TITLE.textContent = `${placeName} — ${pretty}`;
+  // Compose ranges text from cutoff logic inside drawChart (it returns labels)
+  const labels = computeRanges(hours);
+  RANGES_TEXT.textContent = labels.length ? `En iyi saat aralıkları: ${labels.join(', ')}` : 'Eşik üstünde saat aralığı yok';
+  MODAL_BACKDROP.style.display = 'flex';
+  MODAL_BACKDROP.setAttribute('aria-hidden','false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(){
+  MODAL_BACKDROP.style.display = 'none';
+  MODAL_BACKDROP.setAttribute('aria-hidden','true');
+  document.body.style.overflow = '';
+}
+
+MODAL_CLOSE.addEventListener('click', closeModal);
+MODAL_BACKDROP.addEventListener('click', (e)=>{ if(e.target === MODAL_BACKDROP) closeModal(); });
+
+// ---- Chart / ranges ----
+function computeRanges(hours){
+  const CUTOFF = 70, MIN_BLOCK_LEN = 2;
+  const blocks = [];
+  let cur = [];
+  for(const h of hours){
+    if(h.score >= CUTOFF){
+      if(cur.length===0 || h.hour === cur[cur.length-1].hour+1){
+        cur.push(h);
+      } else {
+        if(cur.length >= MIN_BLOCK_LEN) blocks.push(cur);
+        cur = [h];
+      }
+    } else {
+      if(cur.length >= MIN_BLOCK_LEN) blocks.push(cur);
+      cur = [];
+    }
+  }
+  if(cur.length >= MIN_BLOCK_LEN) blocks.push(cur);
+  const labels = blocks.map(b => {
+    const s = b[0].hour, e = b[b.length-1].hour + 1;
+    return `${String(s).padStart(2,'0')}:00–${String(e).padStart(2,'0')}:00`;
+  });
+  return labels;
+}
+
+function drawChart(hours, dateStr){
+  const ctx = CANVAS.getContext('2d');
+  // Clear
+  ctx.clearRect(0,0,CANVAS.width,CANVAS.height);
+
+  // Margins
+  const m = {left:50, right:20, top:20, bottom:40};
+  const w = CANVAS.width - m.left - m.right;
+  const h = CANVAS.height - m.top - m.bottom;
+
+  // Data domain
+  const xs = hours.map(d=>d.hour);
+  const ys = hours.map(d=>d.score);
+  const xMin = 5, xMax = 21;
+  const yMin = 0, yMax = 100;
+
+  const xScale = x => m.left + ( (x - xMin) / (xMax - xMin) ) * w;
+  const yScale = y => m.top  + (1 - (y - yMin) / (yMax - yMin)) * h;
+
+  // Axes
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#6b7280';
+  ctx.beginPath();
+  ctx.moveTo(m.left, m.top);
+  ctx.lineTo(m.left, m.top+h);
+  ctx.lineTo(m.left+w, m.top+h);
+  ctx.stroke();
+
+  // Grid + labels
+  ctx.fillStyle = '#cbd5e1';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for(let hr=5; hr<=21; hr+=2){
+    const x = xScale(hr);
+    ctx.fillText(String(hr).padStart(2,'0'), x, m.top+h+6);
+    ctx.strokeStyle = '#1f2937';
+    ctx.beginPath(); ctx.moveTo(x, m.top); ctx.lineTo(x, m.top+h); ctx.stroke();
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for(let v=0; v<=100; v+=20){
+    const y = yScale(v);
+    ctx.fillText(String(v), m.left-8, y);
+    ctx.strokeStyle = '#1f2937';
+    ctx.beginPath(); ctx.moveTo(m.left, y); ctx.lineTo(m.left+w, y); ctx.stroke();
+  }
+
+  // Cutoff line
+  const CUTOFF = 70;
+  ctx.strokeStyle = '#fbbf24';
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(m.left, yScale(CUTOFF));
+  ctx.lineTo(m.left+w, yScale(CUTOFF));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Ranges shading
+  const labels = computeRanges(hours);
+  ctx.fillStyle = 'rgba(16,185,129,0.15)'; // soft greenish
+  for(const lab of labels){
+    const [s,e] = lab.split('–').map(t => parseInt(t.slice(0,2),10));
+    const x1 = xScale(s);
+    const x2 = xScale(e);
+    ctx.fillRect(x1, m.top, x2-x1, h);
+  }
+
+  // Line path
+  if(xs.length){
+    ctx.strokeStyle = '#eab308'; // amber-ish
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(xScale(xs[0]), yScale(ys[0]));
+    for(let i=1;i<xs.length;i++){
+      ctx.lineTo(xScale(xs[i]), yScale(ys[i]));
+    }
+    ctx.stroke();
+
+    // Markers
+    ctx.fillStyle = '#eab308';
+    for(let i=0;i<xs.length;i++){
+      const x = xScale(xs[i]), y = yScale(ys[i]);
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+// ---- Query flow ----
 async function doQuery(placeStr, days){
   try{
     SONUCLAR.innerHTML = '<div class="card">Veriler çekiliyor…</div>';
-
-    // 1) Koordinat
     let lat=null, lon=null, placeName=placeStr;
     const coords = placeStr.split(',').map(s=>s.trim());
     if(coords.length===2 && !isNaN(Number(coords[0]))){
@@ -187,25 +370,20 @@ async function doQuery(placeStr, days){
       const g = await geocodePlace(placeStr);
       lat=g.lat; lon=g.lon; placeName=g.display_name;
     }
-
-    // 2) Forecast + Moon paralel çek
     const [forecast, moon] = await Promise.all([
       fetchForecast(lat, lon, days),
       fetchMoon(lat, lon, days).catch(e => { console.warn(e); return null; })
     ]);
-
-    // 3) Hesapla + Göster
     const daily = computeDaily(forecast, moon);
     render(placeName, daily);
     lastQuery = { q:placeStr, days, lat, lon, updatedAt:new Date().toISOString() };
-
   } catch(err){
     SONUCLAR.innerHTML = `<div class="card">Hata: ${err.message || err}</div>`;
     console.error(err);
   }
 }
 
-// ---- Otomatik tetikleyici ----
+// ---- Auto trigger ----
 const autoHandler = debounce(()=>{
   if(!AUTO_SWITCH.checked) return;
   const place = (KONUM_INPUT.value || '').trim();
@@ -219,7 +397,6 @@ KONUM_INPUT.addEventListener('input', autoHandler);
 GUN_SELECT.addEventListener('change', autoHandler);
 AUTO_SWITCH.addEventListener('change', ()=>{ if(AUTO_SWITCH.checked) autoHandler(); });
 
-// ---- İlk yüklemede mevcut değerle çalıştır ----
 function tryUseBrowserLocation(){
   if(!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition((pos)=>{
