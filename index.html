@@ -1,114 +1,23 @@
 <!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Rastgele 🎣 – Balık Tutma Şansı</title>
+<html lang="tr"><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Rastgele 🎣 – Balık Tutma Şansı</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0063b3">
 
-  <!-- Manifest & Theme -->
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0063b3">
+<!-- Favicons -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
 
-  <!-- Favicons / Icons -->
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+<!-- iOS Home Screen icons (multiple sizes) -->
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120.png">
 
-  <!-- (Optional) iOS splash -->
-  <link rel="apple-touch-startup-image" href="icons/splash-1280x720.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-
-  <style>
-    html,body{margin:0;padding:0;background:#0b1320;color:#ecf2f8;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell}
-    .wrap{max-width:520px;margin:0 auto;padding:16px}
-    .card{background:#111a2b;border:1px solid #1e2a40;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
-    .row{display:flex;gap:12px;align-items:center}
-    .row > *{flex:1}
-    .muted{opacity:.75;font-size:.9rem}
-    .score{font-size:3rem;font-weight:800;line-height:1;margin:6px 0}
-    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#0e9; color:#053}
-    .label{font-size:.95rem;margin-bottom:6px;display:block}
-    select, input{width:100%;padding:12px;border-radius:12px;border:1px solid #24324b;background:#0e1525;color:#ecf2f8}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .hint{font-size:.85rem;opacity:.7}
-    footer{opacity:.7;font-size:.85rem;text-align:center;margin:20px 0}
-    .hours{margin-top:8px;font-size:.95rem}
-    .chip{display:inline-block;border:1px solid #24324b;background:#0e1525;border-radius:999px;padding:6px 10px;margin-right:6px;margin-top:6px}
-    .topline{display:flex;justify-content:space-between;gap:12px;align-items:center}
-    .topline .place{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%}
-    .switch{display:flex;gap:10px;align-items:center}
-    .btn{border:none;border-radius:10px;padding:8px 12px;background:#1f2a44;color:#ecf2f8}
-    .btn:active{opacity:.85}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
-    .modal{background:#0f1a2b;border:1px solid #1e2a40;border-radius:16px;max-width:720px;width:100%;box-shadow:0 5px 30px rgba(0,0,0,.6)}
-    .modal header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #1e2a40}
-    .modal .body{padding:16px}
-    .xbtn{background:transparent;border:none;color:#ecf2f8;font-size:1.2rem}
-    canvas{width:100%;height:340px;display:block}
-  </style>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js');
-      });
-    }
-  </script>
-</head>
-<body>
-  <div class="wrap">
-    <header style="margin:12px 0 16px 0;">
-      <div class="topline">
-        <h1 style="margin:0;font-size:1.4rem;">Rastgele <span aria-hidden="true">🎣</span></h1>
-        <div class="switch">
-          <input id="autoUpdate" type="checkbox" checked>
-          <label for="autoUpdate" class="muted">Otomatik</label>
-        </div>
-      </div>
-      <div class="muted">Konum ve gün sayısını seç — veriler otomatik gelsin.</div>
-    </header>
-
-    <section class="card" aria-label="Konum ve tarih">
-      <div class="grid">
-        <div>
-          <label class="label" for="konum">Konum</label>
-          <input id="konum" placeholder="Örn: Erdek - Narlı" value="Erdek - Narlı">
-        </div>
-        <div>
-          <label class="label" for="gunSayisi">Gün</label>
-          <select id="gunSayisi">
-            <option value="1">Bugün</option>
-            <option value="2">2 gün</option>
-            <option value="3">3 gün</option>
-            <option value="5" selected>5 gün</option>
-          </select>
-        </div>
-      </div>
-    </section>
-
-    <section id="sonuclar" style="margin-top:16px"></section>
-
-    <footer>
-      <div>v0.4.3 • Rastgele (ikon & splash entegre)</div>
-      <div class="hint">Karttaki “Detay” ile saat–ihtimal grafiğini gör.</div>
-    </footer>
-  </div>
-
-  <!-- Modal -->
-  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal" role="document">
-      <header>
-        <div id="modalTitle" class="muted">Günlük detay</div>
-        <button class="xbtn" id="modalClose" aria-label="Kapat">✕</button>
-      </header>
-      <div class="body">
-        <canvas id="detailCanvas" width="700" height="340" aria-label="Saat vs ihtimal grafiği"></canvas>
-        <div id="rangesText" class="hint" style="margin-top:8px"></div>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js?v=0.4.2"></script>
-</body>
-</html>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head><body>
+Güncelleme paketi (0.4.3a) — iOS ikon düzeltmesi
+</body></html>
